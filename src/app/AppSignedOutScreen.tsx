@@ -3,8 +3,12 @@ import {motion} from 'motion/react';
 
 export function AppSignedOutScreen({
   onLogin,
+  showDevBypass = false,
+  onDevLogin,
 }: {
   onLogin: () => void;
+  showDevBypass?: boolean;
+  onDevLogin?: () => void;
 }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-white p-4">
@@ -25,6 +29,17 @@ export function AppSignedOutScreen({
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
           Sign in with Google
         </button>
+        {showDevBypass && onDevLogin && (
+          <>
+            <div className="my-4 text-xs font-semibold uppercase tracking-[0.2em] text-gray-300">Local development only</div>
+            <button
+              onClick={onDevLogin}
+              className="w-full py-4 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-gray-200"
+            >
+              Continue with Dev Auth Bypass
+            </button>
+          </>
+        )}
       </motion.div>
     </div>
   );

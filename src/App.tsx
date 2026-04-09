@@ -1,3 +1,4 @@
+import { AnimatePresence } from "framer-motion";
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   auth, db 
@@ -215,13 +216,36 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDevAuthBypassEnabled, setIsDevAuthBypassEnabled] = useState(false);
 
   // Data states
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [claims, setClaims] = useState<ClaimEntry[]>([]);
   const [modules, setModules] = useState<ModuleEntry[]>([]);
 
+  const isDevAuthBypassAvailable = import.meta.env.DEV;
+  const devBypassUser = {
+    uid: 'local-dev-user',
+    displayName: 'Local Dev Admin',
+    email: 'local-dev@example.com',
+  } as User;
+  const devBypassProfile: UserProfile = {
+    uid: 'local-dev-user',
+    displayName: 'Local Dev Admin',
+    email: 'local-dev@example.com',
+    role: 'admin',
+  };
+
   useEffect(() => {
+    // Temporary local-only auth bypass for UI development without Google Sign-In.
+    // This block is gated to Vite dev mode and should be removed once local auth testing is no longer needed.
+    if (isDevAuthBypassAvailable && isDevAuthBypassEnabled) {
+      setUser(devBypassUser);
+      setProfile(devBypassProfile);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -260,10 +284,17 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isDevAuthBypassAvailable, isDevAuthBypassEnabled]);
 
   // Real-time listeners
   useEffect(() => {
+    if (isDevAuthBypassAvailable && isDevAuthBypassEnabled) {
+      setTimesheets([]);
+      setClaims([]);
+      setModules([]);
+      return;
+    }
+
     if (!user) return;
 
     const tsQuery = profile?.role === 'admin' 
@@ -298,7 +329,7 @@ export default function App() {
       unsubscribeCl();
       unsubscribeMod();
     };
-  }, [user, profile]);
+  }, [isDevAuthBypassAvailable, isDevAuthBypassEnabled, user, profile]);
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -309,14 +340,28 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => {
+    if (isDevAuthBypassAvailable && isDevAuthBypassEnabled) {
+      setIsDevAuthBypassEnabled(false);
+      setUser(null);
+      setProfile(null);
+      return;
+    }
+    return signOut(auth);
+  };
 
   if (loading) {
     return <AppLoadingScreen />;
   }
 
   if (!user) {
-    return <AppSignedOutScreen onLogin={handleLogin} />;
+    return (
+      <AppSignedOutScreen
+        onLogin={handleLogin}
+        showDevBypass={isDevAuthBypassAvailable}
+        onDevLogin={() => setIsDevAuthBypassEnabled(true)}
+      />
+    );
   }
 
   return (
