@@ -60,7 +60,7 @@ import {
   Star,
   Archive
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   format, 
   addMonths, 
@@ -111,6 +111,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { UserProfile, TimesheetEntry, ClaimEntry, ModuleEntry } from './types';
 import { ModuleDetailView } from './components/ModuleDetailView';
+import { AppShell } from './app/AppShell';
+import { AppViewSwitch } from './app/AppViewSwitch';
+import { AppLoadingScreen } from './app/AppLoadingScreen';
+import { AppSignedOutScreen } from './app/AppSignedOutScreen';
 
 // --- Error Handling ---
 enum OperationType {
@@ -211,36 +215,6 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('timesheets');
-  const [selectedModuleForDetail, setSelectedModuleForDetail] = useState<ModuleEntry | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
-  const [sidebarItems, setSidebarItems] = useState([
-    { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
-    { id: 'modules', label: 'Modules', icon: Layers },
-    { id: 'timesheets', label: 'Timesheets', icon: LayoutDashboard },
-    { id: 'tracker', label: 'Time Tracker', icon: Timer },
-    { id: 'claims', label: 'Claims', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setSidebarItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
 
   // Data states
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
@@ -338,197 +312,51 @@ export default function App() {
   const handleLogout = () => signOut(auth);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-white p-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full text-center border border-gray-100"
-        >
-          <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-200">
-            <Clock className="text-white" size={32} />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">TimeClaim Pro</h1>
-          <p className="text-gray-500 mb-8">Streamline your timesheets and expense claims in one place.</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full py-4 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-100 flex items-center justify-center gap-3"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-            Sign in with Google
-          </button>
-        </motion.div>
-      </div>
-    );
+    return <AppSignedOutScreen onLogin={handleLogin} />;
   }
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-        {/* Sidebar */}
-        <aside className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-full md:w-64'}`}>
-          <div className={`p-6 border-b border-gray-100 flex items-center justify-between ${isSidebarCollapsed ? 'px-4' : ''}`}>
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="bg-indigo-600 p-2 rounded-lg shrink-0">
-                <Clock className="text-white" size={20} />
-              </div>
-              {!isSidebarCollapsed && <span className="font-bold text-xl text-gray-900 whitespace-nowrap">TimeClaim</span>}
-            </div>
-            <button 
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1 hover:bg-gray-100 rounded-md text-gray-400 hidden md:block"
-            >
-              {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </button>
-          </div>
-          
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext 
-                items={sidebarItems.map(i => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {sidebarItems.map((item) => (
-                  <SortableNavItem 
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    icon={item.icon}
-                    isActive={activeTab === item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    isCollapsed={isSidebarCollapsed}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          </nav>
-
-          <div className="p-4 border-t border-gray-100">
-            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2'}`}>
-              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0">
-                {profile?.displayName?.[0]}
-              </div>
-              {!isSidebarCollapsed && (
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-medium text-gray-900 truncate">{profile?.displayName}</p>
-                  <p className="text-xs text-gray-500 truncate capitalize">{profile?.role}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className={`flex-1 overflow-y-auto ${activeTab === 'module-detail' ? '' : 'p-4 md:p-8'}`}>
-          <div className={activeTab === 'module-detail' ? 'h-full' : 'max-w-6xl mx-auto'}>
-            <AnimatePresence mode="wait">
-              {activeTab === 'calendar' && (
-                <CalendarView key="calendar" timesheets={timesheets} user={user} modules={modules} />
-              )}
-              {activeTab === 'modules' && (
-                <ModulesView 
-                  key="modules" 
-                  user={user} 
-                  modules={modules} 
-                  timesheets={timesheets} 
-                  isAdmin={profile?.role === 'admin'} 
-                  onModuleClick={(module) => {
-                    setSelectedModuleForDetail(module);
-                    setActiveTab('module-detail');
-                  }}
-                />
-              )}
-              {activeTab === 'module-detail' && selectedModuleForDetail && (
-                <ModuleDetailView 
-                  user={user}
-                  module={modules.find(m => m.id === selectedModuleForDetail.id) || selectedModuleForDetail}
-                  timesheets={timesheets}
-                  onBack={() => setActiveTab('modules')}
-                />
-              )}
-              {activeTab === 'timesheets' && (
-                <TimesheetView key="timesheets" user={user} timesheets={timesheets} modules={modules} isAdmin={profile?.role === 'admin'} />
-              )}
-              {activeTab === 'tracker' && (
-                <TimeTrackerView key="tracker" user={user} modules={modules} />
-              )}
-              {activeTab === 'claims' && (
-                <ClaimView key="claims" user={user} claims={claims} isAdmin={profile?.role === 'admin'} />
-              )}
-              {activeTab === 'settings' && (
-                <SettingsView key="settings" user={user} profile={profile} onLogout={handleLogout} />
-              )}
-            </AnimatePresence>
-          </div>
-        </main>
-      </div>
+      <AppShell
+        profile={profile}
+        renderContent={({activeTab, setActiveTab, selectedModuleForDetail, setSelectedModuleForDetail}) => (
+          <AppViewSwitch
+            activeTab={activeTab}
+            selectedModuleForDetail={selectedModuleForDetail}
+            calendarView={<CalendarView key="calendar" timesheets={timesheets} user={user} modules={modules} />}
+            modulesView={
+              <ModulesView
+                key="modules"
+                user={user}
+                modules={modules}
+                timesheets={timesheets}
+                isAdmin={profile?.role === 'admin'}
+                onModuleClick={(module) => {
+                  setSelectedModuleForDetail(module);
+                  setActiveTab('module-detail');
+                }}
+              />
+            }
+            moduleDetailView={
+              <ModuleDetailView
+                user={user}
+                module={selectedModuleForDetail ? (modules.find(m => m.id === selectedModuleForDetail.id) || selectedModuleForDetail) : selectedModuleForDetail}
+                timesheets={timesheets}
+                onBack={() => setActiveTab('modules')}
+              />
+            }
+            timesheetsView={<TimesheetView key="timesheets" user={user} timesheets={timesheets} modules={modules} isAdmin={profile?.role === 'admin'} />}
+            trackerView={<TimeTrackerView key="tracker" user={user} modules={modules} />}
+            claimsView={<ClaimView key="claims" user={user} claims={claims} isAdmin={profile?.role === 'admin'} />}
+            settingsView={<SettingsView key="settings" user={user} profile={profile} onLogout={handleLogout} />}
+          />
+        )}
+      />
     </ErrorBoundary>
-  );
-}
-
-// --- Sub-Views ---
-
-function SortableNavItem({ id, label, icon: Icon, isActive, onClick, isCollapsed }: { 
-  id: string, 
-  label: string, 
-  icon: any, 
-  isActive: boolean, 
-  onClick: () => void,
-  isCollapsed: boolean,
-  key?: string
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 'auto',
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className="group relative flex items-center"
-    >
-      {!isCollapsed && (
-        <div 
-          {...attributes} 
-          {...listeners}
-          className="absolute left-0 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 transition-opacity"
-        >
-          <GripVertical size={14} />
-        </div>
-      )}
-      <button 
-        onClick={onClick}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50'} ${isCollapsed ? 'justify-center px-2' : 'pl-7'}`}
-        title={isCollapsed ? label : undefined}
-      >
-        <Icon size={20} className="shrink-0" />
-        {!isCollapsed && <span>{label}</span>}
-      </button>
-    </div>
   );
 }
 
