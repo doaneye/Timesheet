@@ -369,6 +369,7 @@ export default function App() {
     <ErrorBoundary>
       <AppShell
         profile={profile}
+        showDevBypassIndicator={isDevAuthBypassAvailable && isDevAuthBypassEnabled}
         renderContent={({activeTab, setActiveTab, selectedModuleForDetail, setSelectedModuleForDetail}) => (
           <AppViewSwitch
             activeTab={activeTab}

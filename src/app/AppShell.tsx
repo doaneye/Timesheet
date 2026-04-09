@@ -39,9 +39,11 @@ export interface AppShellRenderState {
 
 export function AppShell({
   profile,
+  showDevBypassIndicator = false,
   renderContent,
 }: {
   profile: UserProfile | null;
+  showDevBypassIndicator?: boolean;
   renderContent: (state: AppShellRenderState) => React.ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState<string>('timesheets');
@@ -134,6 +136,11 @@ export function AppShell({
 
       <main className={`flex-1 overflow-y-auto ${activeTab === 'module-detail' ? '' : 'p-4 md:p-8'}`}>
         <div className={activeTab === 'module-detail' ? 'h-full' : 'max-w-6xl mx-auto'}>
+          {showDevBypassIndicator && activeTab !== 'module-detail' && (
+            <div className="mb-4 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              Dev auth bypass active with mock local data
+            </div>
+          )}
           {renderContent({
             activeTab,
             setActiveTab,
