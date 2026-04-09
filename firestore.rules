@@ -1,0 +1,158 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: userId
+// Fields:
+//   - displayName: string (required)
+//   - email: string (required, email format)
+//   - role: string (required, enum: ['admin', 'user'])
+//
+// Collection: timesheets
+// Document ID: timesheetId
+// Fields:
+//   - userId: string (required)
+//   - date: string (required, date format)
+//   - startTime: string (required)
+//   - endTime: string (required)
+//   - task: string (optional)
+//   - moduleCode: string (required)
+//   - category: string (required)
+//   - status: string (required, enum: ['pending', 'approved', 'rejected'])
+//
+// Collection: claims
+// Document ID: claimId
+// Fields:
+//   - userId: string (required)
+//   - date: string (required, date format)
+//   - amount: number (required, positive)
+//   - category: string (required)
+//   - description: string (optional)
+//   - receiptUrl: string (optional, uri format)
+//   - status: string (required, enum: ['pending', 'approved', 'rejected'])
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isNewDocOwner() {
+      return isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "doaneyip@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email', 'role']) &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidTimesheet(data) {
+      return data.keys().hasAll(['userId', 'date', 'startTime', 'endTime', 'moduleCode', 'category', 'status']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.startTime is string &&
+             data.endTime is string &&
+             data.moduleCode is string && data.moduleCode.size() > 0 &&
+             data.category is string &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             (!('task' in data) || (data.task is string && data.task.size() < 500));
+    }
+
+    function isValidClaim(data) {
+      return data.keys().hasAll(['userId', 'date', 'amount', 'category', 'status']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.amount is number && data.amount > 0 &&
+             data.category is string &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             (!('receiptUrl' in data) || isValidUrl(data.receiptUrl));
+    }
+
+    function isValidModule(data) {
+      return data.keys().hasAll(['userId', 'moduleCode', 'moduleName', 'programme', 'status', 'visibility']) &&
+             data.userId is string &&
+             data.moduleCode is string && data.moduleCode.size() > 0 && data.moduleCode.size() < 100 &&
+             data.moduleName is string && data.moduleName.size() > 0 && data.moduleName.size() < 200 &&
+             data.programme is string && data.programme.size() < 200 &&
+             data.status in ['Active', 'Archived'] &&
+             data.visibility in ['Public', 'Private'] &&
+             (!('categories' in data) || data.categories is list) &&
+             (!('tasks' in data) || data.tasks is list) &&
+             (!('estimatedHrs' in data) || data.estimatedHrs is number) &&
+             (!('rateGBP' in data) || data.rateGBP is number) &&
+             (!('description' in data) || data.description is string) &&
+             (!('note' in data) || data.note is string) &&
+             (!('remark' in data) || data.remark is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /timesheets/{timesheetId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isNewDocOwner() && isValidTimesheet(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidTimesheet(request.resource.data) && 
+                    (isAdmin() || (isDocOwner() && request.resource.data.status == resource.data.status && request.resource.data.userId == resource.data.userId));
+      allow delete: if isAuthenticated() && (isDocOwner() && resource.data.status == 'pending') || isAdmin();
+    }
+
+    match /claims/{claimId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isNewDocOwner() && isValidClaim(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidClaim(request.resource.data) &&
+                    (isAdmin() || (isDocOwner() && request.resource.data.status == resource.data.status && request.resource.data.userId == resource.data.userId));
+      allow delete: if isAuthenticated() && (isDocOwner() && resource.data.status == 'pending') || isAdmin();
+    }
+
+    match /modules/{moduleId} {
+      allow read: if isAuthenticated() && (resource.data.visibility == 'Public' || isDocOwner() || isAdmin());
+      allow create: if isAuthenticated() && isNewDocOwner() && isValidModule(request.resource.data);
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidModule(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+    }
+  }
+}

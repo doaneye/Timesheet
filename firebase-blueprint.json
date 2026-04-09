@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["displayName", "email", "role"]
+    },
+    "Timesheet": {
+      "title": "Timesheet",
+      "description": "Record of time spent on a project",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "task": { "type": "string" },
+        "moduleCode": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["userId", "date", "startTime", "endTime", "moduleCode", "category", "status"]
+    },
+    "Claim": {
+      "title": "Claim",
+      "description": "Expense claim record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "receiptUrl": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["userId", "date", "amount", "category", "status"]
+    },
+    "Module": {
+      "title": "Module",
+      "description": "Module or Project record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "moduleCode": { "type": "string" },
+        "moduleName": { "type": "string" },
+        "programme": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Archived"] },
+        "visibility": { "type": "string", "enum": ["Public", "Private"] },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "tasks": { "type": "array", "items": { "type": "string" } },
+        "estimatedHrs": { "type": "number" },
+        "rateGBP": { "type": "number" },
+        "description": { "type": "string" },
+        "note": { "type": "string" },
+        "remark": { "type": "string" }
+      },
+      "required": ["userId", "moduleCode", "moduleName", "programme", "status", "visibility"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/timesheets/{timesheetId}": {
+      "schema": "Timesheet",
+      "description": "Timesheet entries"
+    },
+    "/claims/{claimId}": {
+      "schema": "Claim",
+      "description": "Expense claims"
+    },
+    "/modules/{moduleId}": {
+      "schema": "Module",
+      "description": "Module records"
+    }
+  }
+}
