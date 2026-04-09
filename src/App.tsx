@@ -116,6 +116,7 @@ import { AppShell } from './app/AppShell';
 import { AppViewSwitch } from './app/AppViewSwitch';
 import { AppLoadingScreen } from './app/AppLoadingScreen';
 import { AppSignedOutScreen } from './app/AppSignedOutScreen';
+import { devMockClaims, devMockModules, devMockTimesheets } from './app/devMockData';
 
 // --- Error Handling ---
 enum OperationType {
@@ -289,9 +290,9 @@ export default function App() {
   // Real-time listeners
   useEffect(() => {
     if (isDevAuthBypassAvailable && isDevAuthBypassEnabled) {
-      setTimesheets([]);
-      setClaims([]);
-      setModules([]);
+      setTimesheets(devMockTimesheets);
+      setClaims(devMockClaims);
+      setModules(devMockModules);
       return;
     }
 
