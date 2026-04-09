@@ -221,6 +221,7 @@ export default function App() {
     { id: 'timesheets', label: 'Timesheets', icon: LayoutDashboard },
     { id: 'tracker', label: 'Time Tracker', icon: Timer },
     { id: 'claims', label: 'Claims', icon: FileText },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ]);
 
   const sensors = useSensors(
@@ -415,7 +416,7 @@ export default function App() {
           </nav>
 
           <div className="p-4 border-t border-gray-100">
-            <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2'}`}>
+            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2'}`}>
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0">
                 {profile?.displayName?.[0]}
               </div>
@@ -426,14 +427,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            <button 
-              onClick={handleLogout}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium ${isSidebarCollapsed ? 'justify-center px-2' : ''}`}
-              title="Sign Out"
-            >
-              <LogOut size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span>Sign Out</span>}
-            </button>
           </div>
         </aside>
 
@@ -473,6 +466,9 @@ export default function App() {
               )}
               {activeTab === 'claims' && (
                 <ClaimView key="claims" user={user} claims={claims} isAdmin={profile?.role === 'admin'} />
+              )}
+              {activeTab === 'settings' && (
+                <SettingsView key="settings" user={user} profile={profile} onLogout={handleLogout} />
               )}
             </AnimatePresence>
           </div>
@@ -757,7 +753,7 @@ function AddTimeEntryModal({
     endTime: initialEntry ? initialEntry.endTime : format(addDays(new Date(), 0), 'HH:mm'),
     task: initialEntry ? initialEntry.task : '',
     moduleCode: initialEntry ? initialEntry.moduleCode : '',
-    category: initialEntry ? initialEntry.category : 'Development',
+    category: initialEntry ? initialEntry.category : '',
     description: initialEntry ? initialEntry.description || '' : ''
   });
 
@@ -2183,8 +2179,13 @@ function TimesheetView({ user, timesheets, modules, isAdmin }: { user: User, tim
     return acc;
   }, {});
 
+  const allModuleCategories = Array.from(new Set(modules.flatMap(m => m.categories || [])));
   const allTimesheetCategories = Array.from(new Set(weekTimesheets.map(ts => ts.category)));
-  const displayCategories = allTimesheetCategories.length > 0 ? allTimesheetCategories : ['Development', 'Meeting', 'Research', 'Admin', 'Other'];
+  
+  let displayCategories = Array.from(new Set([...allModuleCategories, ...allTimesheetCategories]));
+  if (displayCategories.length === 0) {
+    displayCategories = ['Development', 'Meeting', 'Research', 'Admin', 'Other'];
+  }
 
   const totalByCategory = displayCategories.reduce((acc: any, cat) => {
     acc[cat] = 0;
@@ -2520,8 +2521,6 @@ function TimesheetView({ user, timesheets, modules, isAdmin }: { user: User, tim
     </motion.div>
   );
 }
-
-const MOCK_MODULES = ['MOD101', 'MOD102', 'MOD201', 'MOD305'];
 
 function TimeTrackerView({ user, modules }: { user: User, modules: ModuleEntry[], key?: string }) {
   const [mode, setMode] = useState<'timer' | 'manual'>('timer');
@@ -3514,6 +3513,44 @@ function ClaimView({ user, claims, isAdmin }: { user: User, claims: ClaimEntry[]
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function SettingsView({ user, profile, onLogout }: { user: User, profile: UserProfile | null, onLogout: () => void }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">User Settings</h2>
+        <p className="text-gray-500 mt-1">Manage your account and preferences</p>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-2xl">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl shrink-0">
+              {profile?.displayName?.[0] || user.email?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p className="text-lg font-medium text-gray-900">{profile?.displayName || 'User'}</p>
+              <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-xs text-gray-400 mt-1 capitalize">Role: {profile?.role || 'User'}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 bg-gray-50">
+          <h3 className="text-sm font-medium text-gray-900 mb-4 uppercase tracking-wider">Account Actions</h3>
+          <button 
+            onClick={onLogout}
+            className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium shadow-sm"
+          >
+            <LogOut size={18} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
     </motion.div>
